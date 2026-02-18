@@ -74,7 +74,7 @@ jobs:
         if: github.repository == 'du2333/flare-stack-blog'
         uses: hashicorp/vault-action@v3
         with:
-          url: https://vault.dukda.com
+          url: https://vault.dukda.com 
           token: ${{ secrets.VAULT_TOKEN }}
           secrets: |
             secrets/data/cloudflare *
@@ -83,7 +83,7 @@ jobs:
         if: github.repository == 'du2333/flare-stack-blog'
         uses: hashicorp/vault-action@v3
         with:
-          url: https://vault.dukda.com
+          url: https://vault.dukda.com 
           token: ${{ secrets.VAULT_TOKEN }}
           secrets: |
             secrets/data/blog *
@@ -119,6 +119,9 @@ jobs:
           echo "VITE_BLOG_GITHUB=${{ vars.VITE_BLOG_GITHUB }}" >> $GITHUB_ENV
           echo "VITE_BLOG_EMAIL=${{ vars.VITE_BLOG_EMAIL }}" >> $GITHUB_ENV
           echo "TURNSTILE_SECRET_KEY=${{ secrets.TURNSTILE_SECRET_KEY }}" >> $GITHUB_ENV
+          # === ICP 备案信息（从 Repository Variables 读取）===
+          echo "VITE_ICP_NUMBER=${{ vars.VITE_ICP_NUMBER }}" >> $GITHUB_ENV
+          echo "VITE_ICP_URL=${{ vars.VITE_ICP_URL }}" >> $GITHUB_ENV
 
       - name: Inject Resource IDs
         run: |
