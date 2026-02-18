@@ -163,6 +163,8 @@ src/
 | `VITE_BLOG_DESCRIPTION`   | 构建时 | 博客描述                                          |
 | `VITE_BLOG_GITHUB`        | 构建时 | GitHub 主页链接                                   |
 | `VITE_BLOG_EMAIL`         | 构建时 | 联系邮箱                                          |
+| `VITE_ICP_URL`            | 构建时 | ICP备案链接（留空默认工信部备案，e.g.`https://icp.gov.moe/?keyword=你的备案号`） |
+| `VITE_ICP_NUMBER`         | 构建时 | ICP备案号（用于展示，留空不显示备案信息，e.g.`萌ICP备********号）       |
 
 ---
 
