@@ -1,25 +1,33 @@
+import type { Locale } from "@/lib/i18n";
+import { m } from "@/paraglide/messages";
 import { EmailLayout } from "./EmailLayout";
 
 interface AdminNotificationEmailProps {
-  postTitle: string;
-  commenterName: string;
   commentPreview: string;
   commentUrl: string;
+  commenterName: string;
+  locale: Locale;
+  postTitle: string;
 }
 
 export const AdminNotificationEmail = ({
-  postTitle,
-  commenterName,
   commentPreview,
   commentUrl,
+  commenterName,
+  locale,
+  postTitle,
 }: AdminNotificationEmailProps) => {
   return (
     <EmailLayout
-      previewText={`${commenterName} 在《${postTitle}》下发表了评论`}
+      locale={locale}
+      previewText={m.email_comment_admin_root_preview(
+        { commenterName, postTitle },
+        { locale },
+      )}
     >
       <h1
         style={{
-          fontFamily: '"Playfair Display", "Georgia", serif',
+          fontFamily: '"Noto Serif SC", "Songti SC", Georgia, serif',
           fontSize: "20px",
           fontWeight: "500",
           color: "#1a1a1a",
@@ -27,10 +35,13 @@ export const AdminNotificationEmail = ({
           lineHeight: "1.4",
         }}
       >
-        新评论提醒
+        {m.email_comment_admin_root_title({}, { locale })}
       </h1>
       <p style={{ fontSize: "14px", color: "#444", lineHeight: "1.6" }}>
-        <strong>{commenterName}</strong> 在《{postTitle}》下发表了评论：
+        {m.email_comment_admin_root_intro(
+          { commenterName, postTitle },
+          { locale },
+        )}
       </p>
       <blockquote
         style={{
@@ -58,7 +69,7 @@ export const AdminNotificationEmail = ({
             letterSpacing: "0.05em",
           }}
         >
-          查看评论
+          {m.email_comment_admin_root_action({}, { locale })}
         </a>
       </div>
     </EmailLayout>

@@ -1,5 +1,5 @@
 import type { JSONContent } from "@tiptap/react";
-import { extractImageKey } from "@/features/media/media.utils";
+import { extractImageKey } from "@/features/media/utils/media.utils";
 
 export function slugify(text: string | null | undefined) {
   if (!text) return "untitled-log";
@@ -28,6 +28,25 @@ export function slugify(text: string | null | undefined) {
   return cleaned || "untitled-log";
 }
 
+export function jsonContentHasType(
+  doc: JSONContent | null | undefined,
+  types: string | ReadonlyArray<string>,
+): boolean {
+  if (!doc) return false;
+  const wanted = typeof types === "string" ? new Set([types]) : new Set(types);
+
+  function walk(node: JSONContent): boolean {
+    if (node.type && wanted.has(node.type)) return true;
+    if (!node.content) return false;
+    for (const child of node.content) {
+      if (walk(child)) return true;
+    }
+    return false;
+  }
+
+  return walk(doc);
+}
+
 export function extractAllImageKeys(doc: JSONContent | null): Array<string> {
   const keys: Array<string> = [];
 
@@ -43,30 +62,16 @@ export function extractAllImageKeys(doc: JSONContent | null): Array<string> {
   return Array.from(new Set(keys)); // 去重
 }
 
-export async function highlightCodeBlocks(
-  doc: JSONContent,
-): Promise<JSONContent> {
-  const { highlight } = await import("@/lib/shiki");
-  const cloned = structuredClone(doc);
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
 
-  async function traverse(node: JSONContent) {
-    if (node.type === "codeBlock") {
-      const code = node.content?.map((n) => n.text || "").join("") || "";
-      const lang = node.attrs?.language || "text";
-      try {
-        const html = await highlight(code.trim(), lang);
-        node.attrs = { ...node.attrs, highlightedHtml: html };
-      } catch (e) {
-        console.warn(`Failed to highlight code block (lang: ${lang}):`, e);
-      }
-    }
-    if (node.content) {
-      await Promise.all(node.content.map(traverse));
-    }
-  }
-
-  await traverse(cloned);
-  return cloned;
+export function fallbackCodeHtml(code: string) {
+  return `<pre><code>${escapeHtml(code)}</code></pre>`;
 }
 
 export function convertToPlainText(doc: JSONContent | null): string {
@@ -111,4 +116,20 @@ export function convertToPlainText(doc: JSONContent | null): string {
   // 5. 清理多余空行，整洁输出
   // 将连续的换行符替换为单个空格或单个换行
   return textParts.join("").replace(/\n+/g, "\n").trim();
+}
+
+/** ~400 CJK chars/min, ~200 English words/min. Minimum 1. */
+export function estimateReadTimeMinutes(doc: JSONContent | null): number {
+  const text = convertToPlainText(doc);
+  const cjkChars = (
+    text.match(
+      /[\u4E00-\u9FFF\u3400-\u4DBF\u3040-\u309F\u30A0-\u30FF\uAC00-\uD7AF]/g,
+    ) || []
+  ).length;
+  const textWithoutCjk = text.replace(
+    /[\u4E00-\u9FFF\u3400-\u4DBF\u3040-\u309F\u30A0-\u30FF\uAC00-\uD7AF]/g,
+    " ",
+  );
+  const englishWords = textWithoutCjk.split(/\s+/).filter(Boolean).length;
+  return Math.max(1, Math.ceil(cjkChars / 400 + englishWords / 200));
 }

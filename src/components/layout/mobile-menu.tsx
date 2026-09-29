@@ -1,196 +1,131 @@
 import { Link } from "@tanstack/react-router";
-import { LogOut, UserIcon, X } from "lucide-react";
-import type { FileRoutesByTo } from "@/routeTree.gen";
-import { Button } from "@/components/ui/button";
-import { blogConfig } from "@/blog.config";
+import { LogOut, Settings, User as UserIcon } from "lucide-react";
+import { useState } from "react";
+import { useTheme } from "@/components/common/theme-provider";
+import { ThemeToggle } from "@/components/common/theme-toggle";
+import type { NavOption, UserInfo } from "@/components/layout/layout-props";
+import { PublicNavLink } from "./public-nav-link";
+import { m } from "@/paraglide/messages";
+import { getLocale, setLocale } from "@/paraglide/runtime";
 
 interface MobileMenuProps {
-  navOptions: Array<{
-    label: string;
-    to: keyof FileRoutesByTo;
-    id: string;
-  }>;
-  isOpen: boolean;
+  navOptions: Array<NavOption>;
   onClose: () => void;
-  user?: {
-    name: string;
-    image?: string | null;
-    role?: string | null;
-  };
+  user?: UserInfo;
   logout: () => Promise<void>;
+  mobile: boolean;
+  isLoading?: boolean;
 }
 
+/** Shared account actions; the compact navigation also includes links and preferences. */
 export function MobileMenu({
   navOptions,
-  isOpen,
   onClose,
   user,
   logout,
+  mobile,
+  isLoading,
 }: MobileMenuProps) {
+  const [loggingOut, setLoggingOut] = useState(false);
+  const { userTheme } = useTheme();
+  const themeLabel =
+    userTheme === "light"
+      ? m.theme_light()
+      : userTheme === "dark"
+        ? m.theme_dark()
+        : m.theme_system();
   return (
-    <div
-      className={`fixed inset-0 z-100 transition-all duration-500 ease-in-out ${
-        isOpen
-          ? "opacity-100 pointer-events-auto"
-          : "opacity-0 pointer-events-none"
-      }`}
-    >
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-background/95 backdrop-blur-2xl"
-        onClick={onClose}
-      />
-
-      {/* Content Container */}
-      <div
-        className={`relative h-full w-full flex flex-col p-8 md:p-20 transition-all duration-500 delay-75 ${
-          isOpen ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"
-        }`}
-      >
-        {/* Header */}
-        <div className="flex justify-between items-center">
-          <div className="flex flex-col">
-            <span className="font-serif text-2xl font-bold tracking-tighter text-foreground">
-              [ {blogConfig.name} ]
-            </span>
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onClose}
-            className="w-12 h-12 rounded-full text-muted-foreground hover:text-foreground hover:bg-transparent transition-all"
-          >
-            <X size={24} strokeWidth={1.5} />
-          </Button>
-        </div>
-
-        {/* Links: Terminal Style */}
-        <nav className="flex-1 flex flex-col justify-center space-y-6 md:space-y-8 font-mono">
-          {navOptions.map((item, idx) => (
-            <Link
-              key={item.id}
-              to={item.to}
-              onClick={onClose}
-              className={`group flex items-center gap-4 transition-all duration-500 ${
-                isOpen
-                  ? "translate-x-0 opacity-100"
-                  : "-translate-x-8 opacity-0"
-              }`}
-              activeProps={{
-                className: "!text-foreground",
-              }}
-              style={{ transitionDelay: isOpen ? `${50 + idx * 50}ms` : "0ms" }}
+    <>
+      {mobile && (
+        <>
+          <nav className="public-menu-links">
+            {navOptions.map((option) => (
+              <PublicNavLink
+                key={option.id}
+                option={option}
+                onClick={onClose}
+                className="public-menu-item"
+                activeClassName="public-menu-active"
+              />
+            ))}
+          </nav>
+          <div className="public-menu-preferences">
+            <ThemeToggle className="public-menu-theme" label={themeLabel} />
+            <div
+              className="public-menu-languages"
+              role="group"
+              aria-label={m.common_switch_language()}
             >
-              {({ isActive }) => (
-                <>
-                  <span
-                    className={`text-sm md:text-base text-muted-foreground/50 transition-colors ${
-                      isActive
-                        ? "text-foreground"
-                        : "group-hover:text-foreground"
-                    }`}
-                  >
-                    &gt;_
-                  </span>
-                  <span className="text-3xl md:text-5xl font-bold tracking-tight text-muted-foreground transition-colors group-hover:text-foreground">
-                    {item.label}
-                    {isActive && (
-                      <span className="animate-pulse ml-2 inline-block w-3 h-8 bg-foreground -mb-1 align-middle" />
-                    )}
-                  </span>
-                </>
-              )}
-            </Link>
-          ))}
-
-          {user?.role === "admin" && (
-            <Link
-              to="/admin"
-              onClick={onClose}
-              className={`group flex items-center gap-4 transition-all duration-500 ${
-                isOpen
-                  ? "translate-x-0 opacity-100"
-                  : "-translate-x-8 opacity-0"
-              }`}
-              activeProps={{
-                className: "!text-foreground",
-              }}
-              style={{
-                transitionDelay: isOpen
-                  ? `${100 + navOptions.length * 75}ms`
-                  : "0ms",
-              }}
-            >
-              <span className="text-sm md:text-base text-muted-foreground/50 group-hover:text-foreground transition-colors">
-                &gt;_
-              </span>
-              <span className="text-3xl md:text-5xl font-bold tracking-tight text-muted-foreground group-hover:text-foreground transition-colors">
-                管理
-              </span>
-            </Link>
-          )}
-        </nav>
-
-        {/* Footer: User Info / Login */}
-        <div
-          className={`transition-all duration-500 border-t border-border/40 pt-8 ${
-            isOpen
-              ? "opacity-100 translate-y-0 delay-500"
-              : "opacity-0 translate-y-4"
-          }`}
-        >
-          {user ? (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-full bg-muted overflow-hidden">
-                  {user.image ? (
-                    <img
-                      src={user.image}
-                      alt={user.name}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex items-center justify-center w-full h-full">
-                      <UserIcon size={16} />
-                    </div>
-                  )}
-                </div>
-                <div className="flex flex-col">
-                  <span className="font-mono text-sm text-foreground">
-                    @{user.name}
-                  </span>
-                  <Link
-                    to="/profile"
-                    onClick={onClose}
-                    className="text-[10px] uppercase tracking-widest text-muted-foreground hover:text-foreground text-left"
-                  >
-                    个人资料
-                  </Link>
-                </div>
-              </div>
-
               <button
-                onClick={() => {
-                  logout();
-                  onClose();
-                }}
-                className="text-muted-foreground hover:text-destructive transition-colors"
+                type="button"
+                aria-pressed={getLocale() === "zh"}
+                onClick={() => setLocale("zh")}
               >
-                <LogOut size={20} strokeWidth={1.5} />
+                中文
+              </button>
+              <button
+                type="button"
+                aria-pressed={getLocale() === "en"}
+                onClick={() => setLocale("en")}
+              >
+                English
               </button>
             </div>
-          ) : (
-            <Link
-              to="/login"
-              onClick={onClose}
-              className="group flex items-center gap-2 font-mono text-xl md:text-2xl text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <span>$ login</span>
-              <span className="w-2.5 h-5 bg-foreground opacity-0 group-hover:opacity-100 animate-pulse transition-opacity" />
+          </div>
+        </>
+      )}
+      {isLoading ? (
+        <div className="public-menu-loading" aria-busy="true">
+          <span className="animate-pulse" />
+        </div>
+      ) : user ? (
+        <>
+          <div className="public-menu-identity">
+            {user.image ? (
+              <img src={user.image} alt="" />
+            ) : (
+              <UserIcon size={24} />
+            )}
+            <span>{user.name}</span>
+          </div>
+          <Link to="/profile" onClick={onClose} className="public-menu-item">
+            <UserIcon size={18} />
+            {m.profile_title()}
+          </Link>
+          {user.role === "admin" && (
+            <Link to="/admin" onClick={onClose} className="public-menu-item">
+              <Settings size={18} />
+              {m.profile_admin_dashboard_fuwari()}
             </Link>
           )}
-        </div>
-      </div>
-    </div>
+          <button
+            type="button"
+            disabled={loggingOut}
+            className="public-menu-item public-menu-logout"
+            onClick={async () => {
+              setLoggingOut(true);
+              try {
+                await logout();
+                onClose();
+              } finally {
+                setLoggingOut(false);
+              }
+            }}
+          >
+            <LogOut size={18} />
+            {m.profile_logout_fuwari()}
+          </button>
+        </>
+      ) : (
+        <Link
+          to="/login"
+          onClick={onClose}
+          className="public-menu-item public-menu-active"
+        >
+          <UserIcon size={18} />
+          {m.nav_login_register()}
+        </Link>
+      )}
+    </>
   );
 }

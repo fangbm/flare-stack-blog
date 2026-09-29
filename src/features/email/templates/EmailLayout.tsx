@@ -1,14 +1,21 @@
 import type { ReactNode } from "react";
 import { blogConfig } from "@/blog.config";
+import type { Locale } from "@/lib/i18n";
 
 interface EmailLayoutProps {
   children: ReactNode;
+  locale?: Locale;
   previewText?: string;
 }
 
-export const EmailLayout = ({ children, previewText }: EmailLayoutProps) => {
+export const EmailLayout = ({
+  children,
+  locale,
+  previewText,
+}: EmailLayoutProps) => {
   return (
     <div
+      lang={locale}
       style={{
         backgroundColor: "#ffffff",
         fontFamily:
@@ -46,7 +53,7 @@ export const EmailLayout = ({ children, previewText }: EmailLayoutProps) => {
             <header style={{ marginBottom: "40px", textAlign: "center" }}>
               <h2
                 style={{
-                  fontFamily: '"Playfair Display", "Georgia", serif',
+                  fontFamily: '"Noto Serif SC", "Songti SC", Georgia, serif',
                   fontSize: "24px",
                   fontWeight: "500",
                   margin: "0",
@@ -76,7 +83,7 @@ export const EmailLayout = ({ children, previewText }: EmailLayoutProps) => {
                   textTransform: "uppercase",
                 }}
               >
-                &copy; {new Date().getFullYear()} {blogConfig.title}.
+                &copy; {new Date().getUTCFullYear()} {blogConfig.title}.
               </p>
             </footer>
           </td>

@@ -1,14 +1,14 @@
 import { ScriptOnce } from "@tanstack/react-router";
 import { createClientOnlyFn, createIsomorphicFn } from "@tanstack/react-start";
+import type { ReactNode } from "react";
 import { createContext, use, useEffect, useState } from "react";
 import { z } from "zod";
-import type { ReactNode } from "react";
 
 const UserThemeSchema = z.enum(["light", "dark", "system"]).catch("system");
 const _AppThemeSchema = z.enum(["light", "dark"]).catch("light");
 
 export type UserTheme = z.infer<typeof UserThemeSchema>;
-export type AppTheme = z.infer<typeof _AppThemeSchema>;
+type AppTheme = z.infer<typeof _AppThemeSchema>;
 
 const themeStorageKey = "ui-theme";
 
@@ -110,7 +110,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
 
   return (
     <ThemeContext value={{ userTheme, appTheme, setTheme }}>
-      <ScriptOnce children={themeScript} />
+      <ScriptOnce>{themeScript}</ScriptOnce>
 
       {children}
     </ThemeContext>

@@ -1,49 +1,64 @@
-import { useQueryClient } from "@tanstack/react-query";
-import { Outlet, createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { toast } from "sonner";
-import { Footer } from "@/components/layout/footer";
-import { MobileMenu } from "@/components/layout/mobile-menu";
-import { Navbar } from "@/components/layout/navbar";
+import {
+  createFileRoute,
+  Outlet,
+  useNavigate,
+  useRouteContext,
+} from "@tanstack/react-router";
+import { useEffect } from "react";
+import { PublicLayout as SitePublicLayout } from "@/components/layout/public-layout";
+import { Toaster } from "@/components/layout/toaster";
+import { useLogout } from "@/features/auth/hooks/use-logout";
 import { authClient } from "@/lib/auth/auth.client";
 import { CACHE_CONTROL } from "@/lib/constants";
-import { AUTH_KEYS } from "@/features/auth/queries";
+import { clientEnv } from "@/lib/env/client.env";
+import { isExternalNavHref } from "@/features/config/utils/nav-links";
+import { m } from "@/paraglide/messages";
 
 export const Route = createFileRoute("/_public")({
   component: PublicLayout,
   headers: () => {
     return CACHE_CONTROL.public;
   },
+  head: () => {
+    const env = clientEnv();
+    return {
+      scripts: env.VITE_UMAMI_WEBSITE_ID
+        ? [
+            {
+              src: "/stats.js",
+              defer: true,
+              "data-website-id": env.VITE_UMAMI_WEBSITE_ID,
+            },
+          ]
+        : [],
+    };
+  },
 });
 
 function PublicLayout() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const navigate = useNavigate();
-
-  const navOptions = [
-    { label: "主页", to: "/" as const, id: "home" },
-    { label: "文章", to: "/posts" as const, id: "posts" },
-    { label: "友链", to: "/friend-links" as const, id: "friend-links" },
-  ];
-
+  const { siteConfig } = useRouteContext({ from: "__root__" });
   const { data: session, isPending: isSessionPending } =
     authClient.useSession();
-  const queryClient = useQueryClient();
-  const logout = async () => {
-    const { error } = await authClient.signOut();
-    if (error) {
-      toast.error("会话终止失败, 请稍后重试。", {
-        description: error.message,
-      });
-      return;
-    }
+  const { logout } = useLogout();
 
-    queryClient.removeQueries({ queryKey: AUTH_KEYS.session });
+  const navOptions = [
+    { id: "home", label: m.nav_home(), href: "/", external: false },
+    { id: "posts", label: m.nav_posts(), href: "/posts", external: false },
+    {
+      id: "friend-links",
+      label: m.nav_friend_links(),
+      href: "/friend-links",
+      external: false,
+    },
+    ...siteConfig.navLinks.map((link, index) => ({
+      id: `custom-${index}`,
+      label: link.label,
+      href: link.href,
+      external: isExternalNavHref(link.href),
+    })),
+  ];
 
-    toast.success("会话已终止", {
-      description: "你已安全退出当前会话。",
-    });
-  };
   // Global shortcut: Cmd/Ctrl + K to navigate to search
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -51,7 +66,6 @@ function PublicLayout() {
       if (isToggle) {
         e.preventDefault();
         navigate({ to: "/search" });
-        setIsMenuOpen(false);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -59,29 +73,16 @@ function PublicLayout() {
   }, [navigate]);
 
   return (
-    <div className="min-h-screen font-sans relative antialiased">
-      {/* --- Minimalist Background --- */}
-      <button className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(0,0,0,0.03)_0%,transparent_70%)] in-[.dark]:bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.02)_0%,transparent_70%)]"></div>
-      </button>
-
-      <Navbar
-        onMenuClick={() => setIsMenuOpen(true)}
-        user={session?.user}
-        isLoading={isSessionPending}
+    <>
+      <SitePublicLayout
         navOptions={navOptions}
-      />
-      <MobileMenu
-        isOpen={isMenuOpen}
-        onClose={() => setIsMenuOpen(false)}
         user={session?.user}
+        isSessionLoading={isSessionPending}
         logout={logout}
-        navOptions={navOptions}
-      />
-      <main className="flex flex-col min-h-screen relative z-10">
+      >
         <Outlet />
-      </main>
-      <Footer />
-    </div>
+      </SitePublicLayout>
+      <Toaster />
+    </>
   );
 }

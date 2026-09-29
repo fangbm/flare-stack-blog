@@ -1,17 +1,39 @@
+import type { SiteConfig } from "@/features/config/site-config.schema";
 import { clientEnv } from "@/lib/env/client.env";
 
 const env = clientEnv();
 
 export const blogConfig = {
-  title: env.VITE_BLOG_TITLE || "Flare Stack Blog",
-  name: env.VITE_BLOG_NAME || "blog",
+  title: env.VITE_BLOG_TITLE || "站点名称",
   author: env.VITE_BLOG_AUTHOR || "作者",
   description:
-    env.VITE_BLOG_DESCRIPTION || "这是博客的描述，写一段话介绍一下这个博客，",
-  social: {
-    github: env.VITE_BLOG_GITHUB || "https://github.com/example",
-    email: env.VITE_BLOG_EMAIL || "demo@example.com",
+    env.VITE_BLOG_DESCRIPTION ||
+    "这是我的个人网站和博客。在这里，我主要分享与技术和生活相关的内容。欢迎阅读！",
+  social: [
+    {
+      platform: "github",
+      url: env.VITE_BLOG_GITHUB || "https://github.com/example",
+    },
+    {
+      platform: "email",
+      url: `mailto:${env.VITE_BLOG_EMAIL || "example@email.com"}`,
+    },
+    { platform: "rss", url: "/rss.xml" },
+  ],
+  navLinks: [],
+  icons: {
+    faviconSvg: "/favicon.svg",
+    faviconIco: "/favicon.ico",
+    favicon96: "/favicon-96x96.png",
+    appleTouchIcon: "/apple-touch-icon.png",
+    webApp192: "/web-app-manifest-192x192.png",
+    webApp512: "/web-app-manifest-512x512.png",
   },
-};
-
-export type BlogConfig = typeof blogConfig;
+  theme: {
+    fuwari: {
+      homeBg: "/images/home-bg.webp",
+      avatar: "/images/avatar.png",
+      primaryHue: 250,
+    },
+  },
+} as const satisfies SiteConfig;

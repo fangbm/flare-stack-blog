@@ -1,58 +1,81 @@
-import { blogConfig } from "@/blog.config";
+import { useLoaderData, useRouteContext } from "@tanstack/react-router";
+import type { NavOption } from "@/components/layout/layout-props";
+import { m } from "@/paraglide/messages";
+import { clientEnv } from "@/lib/env/client.env";
 
-// 从环境变量读取 ICP 信息
-const ICP_NUMBER = import.meta.env.VITE_ICP_NUMBER;
-const ICP_URL = import.meta.env.VITE_ICP_URL || "https://beian.miit.gov.cn/";
+const env = clientEnv();
+const ICP_NUMBER = env.VITE_ICP_NUMBER?.trim();
+const ICP_URL = env.VITE_ICP_URL || "https://beian.miit.gov.cn/";
 
-export function Footer() {
+interface FooterProps {
+  navOptions: Array<NavOption>;
+}
+
+export function Footer(_: FooterProps) {
+  const { siteConfig } = useRouteContext({ from: "__root__" });
+  const { currentYear } = useLoaderData({ from: "__root__" });
+
   return (
-    <footer className="border-t border-border/40 bg-background/50 py-16 mt-32">
-      <div className="max-w-3xl mx-auto px-6 md:px-0 flex flex-col md:flex-row justify-between items-center gap-8">
-        {/* Brand / Copyright */}
-        <div className="flex flex-col items-center md:items-start gap-2">
-          <span className="font-serif text-lg font-bold tracking-tighter text-foreground">
-            [ {blogConfig.name} ]
-          </span>
-          <span className="font-mono text-[10px] text-muted-foreground tracking-widest uppercase">
-            © {new Date().getFullYear()} {blogConfig.author}.
-          </span>
-          {/* ICP 备案 - 条件渲染，仅在配置时显示 */}
-          {ICP_NUMBER && (
-            <a
-              href={ICP_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-mono text-[10px] text-muted-foreground/60 hover:text-foreground transition-colors tracking-widest"
-            >
-              {ICP_NUMBER}
-            </a>
-          )}
-        </div>
-
-        {/* Minimalist Links */}
-        <nav className="flex items-center gap-8 text-[11px] font-medium uppercase tracking-widest text-muted-foreground/60">
-          <a href="/" className="hover:text-foreground transition-colors">
-            Home
-          </a>
-          <a href="/posts" className="hover:text-foreground transition-colors">
-            Posts
-          </a>
+    <>
+      <div className="border-t border-black/10 dark:border-white/15 my-10 border-dashed mx-4 md:mx-32" />
+      <div className="border-dashed border-black/10 dark:border-white/15 rounded-2xl mb-12 flex flex-col items-center justify-center px-6 py-8">
+        <div className="fuwari-text-50 text-sm text-center">
+          {m.footer_copyright({
+            year: currentYear.toString(),
+            author: siteConfig.author,
+          })}{" "}
+          /{" "}
           <a
-            href={blogConfig.social.github}
+            href="/rss.xml"
             target="_blank"
             rel="noreferrer"
-            className="hover:text-foreground transition-colors"
+            className="fuwari-expand-animation rounded-md px-1 -m-1 font-medium hover:text-(--fuwari-primary) text-(--fuwari-primary)"
           >
-            Github
-          </a>
+            RSS
+          </a>{" "}
+          /{" "}
           <a
-            href={`mailto:${blogConfig.social.email}`}
-            className="hover:text-foreground transition-colors"
+            href="/sitemap.xml"
+            target="_blank"
+            rel="noreferrer"
+            className="fuwari-expand-animation rounded-md px-1 -m-1 font-medium hover:text-(--fuwari-primary) text-(--fuwari-primary)"
           >
-            Email
+            Sitemap
           </a>
-        </nav>
+          <br />
+          {m.footer_powered_by()}{" "}
+          <a
+            href="https://tanstack.com/start"
+            target="_blank"
+            rel="noreferrer"
+            className="fuwari-expand-animation rounded-md px-1 -m-1 font-medium hover:text-(--fuwari-primary) text-(--fuwari-primary)"
+          >
+            Tanstack Start
+          </a>{" "}
+          &{" "}
+          <a
+            href="https://github.com/du2333/flare-stack-blog"
+            target="_blank"
+            rel="noreferrer"
+            className="fuwari-expand-animation rounded-md px-1 -m-1 font-medium hover:text-(--fuwari-primary) text-(--fuwari-primary)"
+          >
+            Flare Stack Blog
+          </a>
+          {ICP_NUMBER && (
+            <>
+              <br />
+              <a
+                href={ICP_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="fuwari-expand-animation rounded-md px-1 -m-1 font-medium hover:text-(--fuwari-primary) text-(--fuwari-primary)"
+              >
+                {ICP_NUMBER}
+              </a>
+            </>
+          )}
+        </div>
       </div>
-    </footer>
+    </>
   );
 }

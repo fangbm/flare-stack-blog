@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
 import type { RefObject } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { clientEnv } from "@/lib/env/client.env";
 
 const TURNSTILE_SCRIPT_URL =
@@ -42,9 +42,11 @@ interface TurnstileProps {
   onError?: () => void;
   onExpire?: () => void;
   action?: string;
-  /** Shared ref so useTurnstile can access the widget ID for reset */
+  size?: "normal" | "compact";
   widgetIdRef?: RefObject<string | null>;
 }
+
+export type { TurnstileProps };
 
 let scriptLoadPromise: Promise<void> | null = null;
 
@@ -72,6 +74,7 @@ export function Turnstile({
   onError,
   onExpire,
   action,
+  size = "normal",
   widgetIdRef: externalWidgetIdRef,
 }: TurnstileProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -94,6 +97,7 @@ export function Turnstile({
           "error-callback": onError,
           "expired-callback": onExpire,
           action,
+          size,
           appearance: "interaction-only",
         });
         internalWidgetIdRef.current = id;
@@ -115,7 +119,7 @@ export function Turnstile({
         }
       }
     };
-  }, [siteKey, onVerify, onError, onExpire, action, externalWidgetIdRef]);
+  }, [siteKey, onVerify, onError, onExpire, action, size, externalWidgetIdRef]);
 
   if (!siteKey) return null;
 

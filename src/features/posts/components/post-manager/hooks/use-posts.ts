@@ -1,68 +1,58 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
-import { statusFilterToApi } from "../types";
-import type {
-  PostListItem,
-  SortDirection,
-  SortField,
-  StatusFilter,
-} from "../types";
 import {
-  deletePostFn,
-  getPostsCountFn,
-  getPostsFn,
-} from "@/features/posts/api/posts.admin.api";
-
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import { toast } from "sonner";
+import type { GetPostsInput } from "@/features/posts/schema/posts.schema";
+import { adminPostsQuery } from "@/features/posts/queries";
+import { orpc, orpcClient } from "@/lib/orpc";
 import { ADMIN_ITEMS_PER_PAGE } from "@/lib/constants";
-import { POSTS_KEYS } from "@/features/posts/queries";
+import { m } from "@/paraglide/messages";
+import type { AdminPostListItem, SortField, StatusFilter } from "../types";
+import { statusFilterToApi } from "../types";
 
 interface UsePostsOptions {
   page: number;
   status: StatusFilter;
-  sortDir: SortDirection;
   sortBy: SortField;
   search: string;
 }
 
-export function usePosts({
+export function adminPostsListParams({
   page,
   status,
-  sortDir,
   sortBy,
   search,
-}: UsePostsOptions) {
-  const apiStatus = statusFilterToApi(status);
-
-  const listParams = {
+}: UsePostsOptions): GetPostsInput {
+  return {
     offset: (page - 1) * ADMIN_ITEMS_PER_PAGE,
     limit: ADMIN_ITEMS_PER_PAGE,
-    status: apiStatus,
-    sortDir,
+    status: statusFilterToApi(status),
+    sortDir: "DESC",
     sortBy,
     search: search || undefined,
   };
+}
 
-  const countParams = {
-    status: apiStatus,
-    search: search || undefined,
-  };
-
+export function usePosts({ page, status, sortBy, search }: UsePostsOptions) {
   const postsQuery = useQuery({
-    queryKey: POSTS_KEYS.adminList(listParams),
-    queryFn: () => getPostsFn({ data: listParams }),
+    ...adminPostsQuery(adminPostsListParams({ page, status, sortBy, search })),
+    placeholderData: keepPreviousData,
   });
 
-  const countQuery = useQuery({
-    queryKey: POSTS_KEYS.count(countParams),
-    queryFn: () => getPostsCountFn({ data: countParams }),
-  });
-
-  const totalPages = Math.ceil((countQuery.data ?? 0) / ADMIN_ITEMS_PER_PAGE);
+  const totalCount = postsQuery.data?.total ?? 0;
+  const totalPages = Math.ceil(totalCount / ADMIN_ITEMS_PER_PAGE);
 
   return {
-    posts: postsQuery.data ?? [],
-    totalCount: countQuery.data ?? 0,
+    posts: postsQuery.data?.items ?? [],
+    totalCount,
     totalPages,
+    statusCounts: postsQuery.data?.statusCounts,
+    isFetching: postsQuery.isFetching,
+    isPlaceholderData: postsQuery.isPlaceholderData,
+    refetch: postsQuery.refetch,
     isPending: postsQuery.isPending,
     error: postsQuery.error,
   };
@@ -76,18 +66,26 @@ export function useDeletePost({ onSuccess }: UseDeletePostOptions = {}) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (post: PostListItem) => deletePostFn({ data: { id: post.id } }),
-    onSuccess: (_data, post) => {
-      queryClient.invalidateQueries({ queryKey: POSTS_KEYS.adminLists });
-      queryClient.invalidateQueries({ queryKey: POSTS_KEYS.counts });
-      toast.success("条目已删除", {
-        description: `条目 "${post.title}" 已删除成功`,
+    mutationFn: async (post: AdminPostListItem) => {
+      await orpcClient.posts.admin.remove({ id: post.id });
+      return post;
+    },
+    onSuccess: async (post) => {
+      await queryClient.invalidateQueries({
+        queryKey: orpc.posts.admin.list.key(),
+      });
+      toast.success(m.admin_posts_toast_delete_success(), {
+        description: m.admin_posts_toast_delete_success_desc({
+          title: post.title,
+        }),
       });
       onSuccess?.();
     },
     onError: (_error, post) => {
-      toast.error("删除条目失败", {
-        description: `删除条目 "${post.title}" 失败`,
+      toast.error(m.admin_posts_toast_delete_failed(), {
+        description: m.admin_posts_toast_delete_failed_desc({
+          title: post.title,
+        }),
       });
     },
   });

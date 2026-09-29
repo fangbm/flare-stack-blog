@@ -1,10 +1,18 @@
-import { renderToStaticMarkup } from "react-dom/server";
+import { createAuthMiddleware } from "@better-auth/core/api";
+import { APIError } from "@better-auth/core/error";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { getSessionFromCtx } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
+import { renderToStaticMarkup } from "react-dom/server";
 import { AuthEmail } from "@/features/email/templates/AuthEmail";
-import { authConfig } from "@/lib/auth/auth.config";
+import {
+  inspectApiKeyManagementAccess,
+  isApiKeyManagementPath,
+} from "@/lib/auth/api-key-guard";
+import { createAuthConfig } from "@/lib/auth/auth.config";
 import * as authSchema from "@/lib/db/schema/auth.table";
 import { serverEnv } from "@/lib/env/server.env";
+import { m } from "@/paraglide/messages";
 
 async function checkEmailRateLimit(
   env: Env,
@@ -22,42 +30,68 @@ async function checkEmailRateLimit(
 }
 
 export function getAuth({ db, env }: { db: DB; env: Env }) {
-  return createAuth({ db, env });
-}
-
-function createAuth({ db, env }: { db: DB; env: Env }) {
   const {
     BETTER_AUTH_SECRET,
     BETTER_AUTH_URL,
-    ADMIN_EMAIL,
+    LOCALE,
     GITHUB_CLIENT_ID,
     GITHUB_CLIENT_SECRET,
   } = serverEnv(env);
 
-  // 固定 10 个 DO 实例池，随机选择避免冷启动
-  const PASSWORD_HASHER_POOL_SIZE = 10;
-  function getPasswordHasher() {
-    const index = Math.floor(Math.random() * PASSWORD_HASHER_POOL_SIZE);
-    const id = env.PASSWORD_HASHER.idFromName(`hasher-${index}`);
-    return env.PASSWORD_HASHER.get(id);
-  }
-
   return betterAuth({
-    ...authConfig,
+    ...createAuthConfig(),
     socialProviders: {
       github: {
         clientId: GITHUB_CLIENT_ID,
         clientSecret: GITHUB_CLIENT_SECRET,
       },
     },
+    hooks: {
+      before: createAuthMiddleware(async (ctx) => {
+        if (ctx.path === "/sign-up/email") {
+          const email =
+            typeof ctx.body?.email === "string" ? ctx.body.email.trim() : "";
+          if (!email) return;
+
+          const allowed = await checkEmailRateLimit(env, "email-signup", email);
+          if (!allowed) {
+            throw APIError.from("BAD_REQUEST", {
+              code: "RATE_LIMITED",
+              message: "Too many sign up attempts",
+            });
+          }
+        }
+
+        if (!isApiKeyManagementPath(ctx.path)) return;
+
+        const headers = ctx.headers ?? ctx.request?.headers ?? null;
+        const hasApiKeyHeader = Boolean(headers?.get("x-api-key"));
+        let role: string | null = null;
+        if (ctx.request && !hasApiKeyHeader) {
+          const session = await getSessionFromCtx(ctx);
+          const user = session?.user as { role?: string | null } | undefined;
+          role = user?.role ?? null;
+        }
+        const denial = inspectApiKeyManagementAccess({
+          path: ctx.path,
+          headers,
+          isHttpRequest: Boolean(ctx.request),
+          role,
+        });
+        if (!denial.denied) return;
+
+        throw APIError.from("FORBIDDEN", {
+          code: denial.code,
+          message:
+            denial.code === "API_KEY_CANNOT_MANAGE_API_KEYS"
+              ? "API keys cannot manage API keys"
+              : "Only an Admin can manage API keys",
+        });
+      }),
+    },
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: true,
-      password: {
-        hash: (password: string) => getPasswordHasher().hash(password),
-        verify: (params: { hash: string; password: string }) =>
-          getPasswordHasher().verify(params),
-      },
       sendResetPassword: async ({ user, url }) => {
         // Per-email rate limit: 3 per hour — silently skip if exceeded
         const allowed = await checkEmailRateLimit(
@@ -68,14 +102,14 @@ function createAuth({ db, env }: { db: DB; env: Env }) {
         if (!allowed) return;
 
         const emailHtml = renderToStaticMarkup(
-          AuthEmail({ type: "reset-password", url }),
+          AuthEmail({ locale: LOCALE, type: "reset-password", url }),
         );
 
         await env.QUEUE.send({
           type: "EMAIL",
           data: {
             to: user.email,
-            subject: "重置密码",
+            subject: m.email_auth_reset_subject({}, { locale: LOCALE }),
             html: emailHtml,
           },
         });
@@ -92,14 +126,14 @@ function createAuth({ db, env }: { db: DB; env: Env }) {
         if (!allowed) return;
 
         const emailHtml = renderToStaticMarkup(
-          AuthEmail({ type: "verification", url }),
+          AuthEmail({ locale: LOCALE, type: "verification", url }),
         );
 
         await env.QUEUE.send({
           type: "EMAIL",
           data: {
             to: user.email,
-            subject: "验证您的邮箱",
+            subject: m.email_auth_verification_subject({}, { locale: LOCALE }),
             html: emailHtml,
           },
         });
@@ -114,7 +148,10 @@ function createAuth({ db, env }: { db: DB; env: Env }) {
       user: {
         create: {
           before: async (user) => {
-            if (user.email === ADMIN_EMAIL) {
+            const existing = await db.query.user.findFirst({
+              columns: { id: true },
+            });
+            if (!existing) {
               return { data: { ...user, role: "admin" } };
             }
             return { data: user };
@@ -127,5 +164,5 @@ function createAuth({ db, env }: { db: DB; env: Env }) {
   });
 }
 
-export type Auth = ReturnType<typeof createAuth>;
+export type Auth = ReturnType<typeof getAuth>;
 export type Session = Auth["$Infer"]["Session"];

@@ -1,5 +1,7 @@
+import type { Editor } from "@tiptap/react";
 import { useEditorState } from "@tiptap/react";
 import clsx from "clsx";
+import type { LucideIcon } from "lucide-react";
 import {
   Bold,
   Code,
@@ -12,20 +14,24 @@ import {
   ListOrdered,
   Quote,
   Redo,
+  Sigma,
+  SquareFunction,
   Strikethrough,
   Table as TableIcon,
   Terminal,
   Underline as UnderlineIcon,
   Undo,
 } from "lucide-react";
-import type { Editor } from "@tiptap/react";
-import type { LucideIcon } from "lucide-react";
 import type React from "react";
+import { m } from "@/paraglide/messages";
 
 interface EditorToolbarProps {
+  className?: string;
   editor: Editor | null;
   onLinkClick: () => void;
   onImageClick: () => void;
+  onFormulaInlineClick: () => void;
+  onFormulaBlockClick: () => void;
 }
 
 interface ToolbarButtonProps {
@@ -45,12 +51,14 @@ const ToolbarButton: React.FC<ToolbarButtonProps> = ({
   <button
     onClick={onClick}
     className={clsx(
-      "h-8 w-8 flex items-center justify-center transition-colors duration-200 group relative rounded-none",
+      "fuwari-toolbar-button h-8 w-8 flex items-center justify-center group relative rounded-lg",
       isActive
-        ? "bg-foreground text-background"
-        : "text-muted-foreground hover:text-foreground hover:bg-muted/20",
+        ? "bg-(--fuwari-btn-regular-bg) text-(--fuwari-primary)"
+        : "fuwari-text-50 hover:text-(--fuwari-primary) hover:bg-(--fuwari-btn-regular-bg)",
     )}
     title={label}
+    aria-label={label}
+    aria-pressed={isActive}
     type="button"
   >
     <Icon size={14} strokeWidth={isActive ? 2.5 : 2} />
@@ -59,8 +67,11 @@ const ToolbarButton: React.FC<ToolbarButtonProps> = ({
 
 const EditorToolbar: React.FC<EditorToolbarProps> = ({
   editor,
+  className,
   onLinkClick,
   onImageClick,
+  onFormulaInlineClick,
+  onFormulaBlockClick,
 }) => {
   const {
     isBold,
@@ -71,6 +82,8 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
     isStrike,
     isCode,
     isCodeBlock,
+    isInlineMath,
+    isBlockMath,
     isBulletList,
     isOrderedList,
     isBlockquote,
@@ -91,6 +104,8 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
           isOrderedList: false,
           isBlockquote: false,
           isLink: false,
+          isInlineMath: false,
+          isBlockMath: false,
         };
       }
       return {
@@ -102,6 +117,8 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
         isStrike: ctx.editor.isActive("strike"),
         isCode: ctx.editor.isActive("code"),
         isCodeBlock: ctx.editor.isActive("codeBlock"),
+        isInlineMath: ctx.editor.isActive("inlineMath"),
+        isBlockMath: ctx.editor.isActive("blockMath"),
         isBulletList: ctx.editor.isActive("bulletList"),
         isOrderedList: ctx.editor.isActive("orderedList"),
         isBlockquote: ctx.editor.isActive("blockquote"),
@@ -117,6 +134,8 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
     isStrike: false,
     isCode: false,
     isCodeBlock: false,
+    isInlineMath: false,
+    isBlockMath: false,
     isBulletList: false,
     isOrderedList: false,
     isBlockquote: false,
@@ -124,7 +143,12 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
   };
 
   return (
-    <div className="sticky top-0 z-30 mb-8 py-2 bg-background border-b border-border/50 flex flex-wrap items-center gap-1 px-4">
+    <div
+      className={clsx(
+        "sticky top-0 z-30 mb-6 flex flex-wrap items-center gap-1 border-b border-(--fuwari-input-border) bg-(--fuwari-card-bg) py-2",
+        className,
+      )}
+    >
       {/* Headings */}
       <ToolbarButton
         onClick={() =>
@@ -132,7 +156,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
         }
         isActive={isHeading2}
         icon={Heading2}
-        label="二级标题"
+        label={m.editor_toolbar_heading2()}
       />
       <ToolbarButton
         onClick={() =>
@@ -140,69 +164,81 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
         }
         isActive={isHeading3}
         icon={Heading3}
-        label="三级标题"
+        label={m.editor_toolbar_heading3()}
       />
 
-      <div className="h-4 w-px bg-border/50 mx-2"></div>
+      <div className="mx-2 h-4 w-px bg-(--fuwari-meta-divider)"></div>
 
       {/* Formatting */}
       <ToolbarButton
         onClick={() => editor?.chain().focus().toggleBold().run()}
         isActive={isBold}
         icon={Bold}
-        label="粗体"
+        label={m.editor_toolbar_bold()}
       />
       <ToolbarButton
         onClick={() => editor?.chain().focus().toggleItalic().run()}
         isActive={isItalic}
         icon={Italic}
-        label="斜体"
+        label={m.editor_toolbar_italic()}
       />
       <ToolbarButton
         onClick={() => editor?.chain().focus().toggleUnderline().run()}
         isActive={isUnderline}
         icon={UnderlineIcon}
-        label="下划线"
+        label={m.editor_toolbar_underline()}
       />
       <ToolbarButton
         onClick={() => editor?.chain().focus().toggleStrike().run()}
         isActive={isStrike}
         icon={Strikethrough}
-        label="删除线"
+        label={m.editor_toolbar_strike()}
       />
       <ToolbarButton
         onClick={() => editor?.chain().focus().toggleCode().run()}
         isActive={isCode}
         icon={Code}
-        label="行内代码"
+        label={m.editor_toolbar_code()}
       />
       <ToolbarButton
         onClick={() => editor?.chain().focus().toggleCodeBlock().run()}
         isActive={isCodeBlock}
         icon={Terminal}
-        label="代码块"
+        label={m.editor_toolbar_code_block()}
+      />
+      <ToolbarButton
+        onClick={onFormulaInlineClick}
+        isActive={isInlineMath}
+        icon={Sigma}
+        label={m.editor_toolbar_formula_inline()}
+      />
+      <ToolbarButton
+        onClick={onFormulaBlockClick}
+        isActive={isBlockMath}
+        icon={SquareFunction}
+        label={m.editor_toolbar_formula_block()}
       />
 
-      <div className="h-4 w-px bg-border/50 mx-2"></div>
+      <div className="mx-2 h-4 w-px bg-(--fuwari-meta-divider)"></div>
 
       {/* Lists & Blocks */}
       <ToolbarButton
         onClick={() => editor?.chain().focus().toggleBulletList().run()}
         isActive={isBulletList}
         icon={List}
-        label="无序列表"
+        label={m.editor_toolbar_bullet_list()}
       />
       <ToolbarButton
         onClick={() => editor?.chain().focus().toggleOrderedList().run()}
         isActive={isOrderedList}
         icon={ListOrdered}
-        label="有序列表"
+        label={m.editor_toolbar_ordered_list()}
       />
       <ToolbarButton
         onClick={() => editor?.chain().focus().toggleBlockquote().run()}
         isActive={isBlockquote}
         icon={Quote}
-        label="引用"
+        label={m.editor_toolbar_blockquote()}
       />
       <ToolbarButton
         onClick={() =>
@@ -214,35 +250,35 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
         }
         isActive={editor?.isActive("table")}
         icon={TableIcon}
-        label="插入表格"
+        label={m.editor_toolbar_table()}
       />
 
-      <div className="h-4 w-px bg-border/50 mx-2"></div>
+      <div className="mx-2 h-4 w-px bg-(--fuwari-meta-divider)"></div>
 
       {/* Inserts */}
       <ToolbarButton
         onClick={onLinkClick}
         isActive={isLink}
         icon={LinkIcon}
-        label="插入链接"
+        label={m.editor_toolbar_link()}
       />
       <ToolbarButton
         onClick={onImageClick}
         isActive={false}
         icon={ImageIcon}
-        label="插入图片"
+        label={m.editor_toolbar_image()}
       />
 
       <div className="ml-auto flex gap-1">
         <ToolbarButton
           onClick={() => editor?.chain().focus().undo().run()}
           icon={Undo}
-          label="撤销"
+          label={m.editor_toolbar_undo()}
         />
         <ToolbarButton
           onClick={() => editor?.chain().focus().redo().run()}
           icon={Redo}
-          label="重做"
+          label={m.editor_toolbar_redo()}
         />
       </div>
     </div>
