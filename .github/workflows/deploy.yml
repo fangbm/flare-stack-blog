@@ -91,3 +91,21 @@ jobs:
           bunx wrangler secret bulk secrets.json
       - name: Build and deploy
         run: bun run build && bun run deploy
+      - name: Verify production homepage and ICP display
+        run: |
+          response_path="${RUNNER_TEMP}/flare-stack-home.html"
+          status_code="$(curl --fail --silent --show-error --location --max-time 30 \
+            --output "${response_path}" --write-out "%{http_code}" \
+            "https://${DOMAIN}/")"
+          if [ "${status_code}" != "200" ]; then
+            echo "Production homepage returned HTTP ${status_code}"
+            exit 1
+          fi
+          echo "Production homepage returned HTTP ${status_code}"
+          if [ -n "${VITE_ICP_NUMBER}" ]; then
+            if ! grep -Fq -- "${VITE_ICP_NUMBER}" "${response_path}"; then
+              echo "Configured ICP number was not found in the production homepage"
+              exit 1
+            fi
+            echo "Configured ICP number is present in the production homepage"
+          fi
